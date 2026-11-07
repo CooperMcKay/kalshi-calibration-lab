@@ -10,6 +10,7 @@ analyze:
 	$(PY) -m kalshi_lab.model
 	$(PY) -m kalshi_lab.paper_compare
 	$(PY) -m kalshi_lab.stats_tests
+	$(PY) -m kalshi_lab.lying
 
 # Builds dashboard/dashboard.html from YOUR local data/ (gitignored) and opens it.
 dashboard:

@@ -35,13 +35,13 @@ def accuracy_by_horizon(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=["horizon_h", "n", "accuracy"])
 
 
-def volume_error_spearman(df: pd.DataFrame, horizon_h: int) -> tuple[float, float]:
+def volume_error_spearman(df: pd.DataFrame, horizon_h: int, volume_col: str = "volume_fp") -> tuple[float, float]:
     """Spearman correlation between volume and squared error. Negative = busier markets are more accurate."""
     g = df[df["horizon_h"] == horizon_h]
-    if len(g) < MIN_N // 2 or g["volume_fp"].nunique() < 2:
+    if len(g) < MIN_N // 2 or g[volume_col].nunique() < 2:
         return float("nan"), float("nan")
     err = (g["prob"] - g["outcome"]) ** 2
-    rho, pval = spearmanr(g["volume_fp"], err)
+    rho, pval = spearmanr(g[volume_col], err)
     return float(rho), float(pval)
 
 
@@ -93,12 +93,13 @@ def _shape_rows(sports: pd.DataFrame, occ_sports: pd.DataFrame) -> list[dict]:
             "consistent" if trunc >= full else "inconsistent")
         rows.append(_row("Tail truncation (2-98c) raises Brier at 1h", "0.078 vs 0.030 at close",
                          f"{trunc:.3f} vs {full:.3f} ({len(g1) - len(kept)} rows dropped)", len(g1), verdict))
+    vol_col = "volume_pre" if "volume_pre" in sports.columns else "volume_fp"  # volume_fp includes later trading
     for h in (24, 1):
-        rho, pval = volume_error_spearman(sports, h)
+        rho, pval = volume_error_spearman(sports, h, vol_col)
         if np.isnan(rho):
             continue
         verdict = "inconclusive" if pval >= ALPHA else ("consistent" if rho < 0 else "inconsistent")
-        rows.append(_row(f"More volume, lower error at {h}h (Spearman)", "Brier falls monotonically with volume",
+        rows.append(_row(f"More volume, lower error at {h}h (Spearman, volume before the horizon)", "Brier falls monotonically with volume",
                          f"rho={rho:.3f}, p={pval:.3f}", int((sports['horizon_h'] == h).sum()), verdict))
     g1o = occ_sports[occ_sports["horizon_h"] == 1]
     if g1 is not None and len(g1) and len(g1o):

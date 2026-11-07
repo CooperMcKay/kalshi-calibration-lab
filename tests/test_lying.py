@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from kalshi_lab.lying import BANDS, band_table, category_table, cluster_bootstrap, main
+from kalshi_lab.lying import BANDS, POOLED_NON_SPORTS, band_table, category_table, cluster_bootstrap, main, with_pooled
 
 
 def frame(p, y, cats=None, horizon=24, events=None):
@@ -84,3 +84,29 @@ def test_main_writes_outputs(tmp_path):
     for name in ("lying_by_band.csv", "lying_by_category.csv", "lying_category_band_gaps.csv",
                  "lying_bands_24h.png", "lying_category_gaps_24h.png"):
         assert (tmp_path / name).exists()
+
+
+def test_with_pooled_adds_a_non_sports_group_without_touching_originals():
+    df = pd.concat([calibrated_frame(50, 1, cats=["Sports"] * 50),
+                    calibrated_frame(30, 2, cats=["Economics"] * 30),
+                    calibrated_frame(20, 3, cats=["Politics"] * 20)], ignore_index=True)
+    out = with_pooled(df)
+    assert len(out) == len(df) + 50
+    assert (out["category"] == POOLED_NON_SPORTS).sum() == 50
+    assert (df["category"] == POOLED_NON_SPORTS).sum() == 0
+
+
+def test_verdict_distinguishes_average_bias_from_tail_bias():
+    rng = np.random.default_rng(5)
+    n = 3000
+    p = rng.uniform(0.05, 0.95, n)
+    biased = np.clip(p - 0.10, 0, 1)                 # everything happens 10 points less often than priced
+    t = category_table(frame(p, (rng.uniform(size=n) < biased).astype(int)), n_boot=200)
+    assert "average bias" in t.iloc[0]["verdict"]
+
+
+def test_main_supports_close_date_clustering_and_writes_truncated_table(tmp_path):
+    calibrated_frame(600).to_csv(tmp_path / "d.csv", index=False)
+    assert main(["--data", str(tmp_path / "d.csv"), "--out", str(tmp_path), "--n-boot", "50",
+                 "--cluster", "close_date"]) == 0
+    assert (tmp_path / "lying_by_category_truncated.csv").exists()

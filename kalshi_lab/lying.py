@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
+from kalshi_lab.calibration import tail_truncate  # noqa: E402
 from kalshi_lab.metrics import benjamini_hochberg, brier, ece  # noqa: E402
 from kalshi_lab.stats_tests import LONGSHOT, FAVORITE, _slope  # noqa: E402
 
@@ -26,6 +27,7 @@ MIN_BAND_N = 20
 MIN_EVENTS = 100
 ALPHA = 0.05
 KEY_HORIZON_H = 24
+POOLED_NON_SPORTS = "All non-sports"
 
 
 def _cluster_draws(p, y, groups, stat, n_boot: int, seed: int) -> np.ndarray:
@@ -110,9 +112,12 @@ def _category_row(g: pd.DataFrame, n_boot: int, seed: int, cluster_col: str) -> 
     row["mean_gap"], row["mean_gap_lo"], row["mean_gap_hi"] = cluster_bootstrap(p, y, groups, _gap, n_boot, seed)
     if len(np.unique(y)) == 2:
         row["slope"], row["slope_lo"], row["slope_hi"] = cluster_bootstrap(p, y, groups, _slope, n_boot, seed)
-    off = (row["mean_gap_lo"] > 0 or row["mean_gap_hi"] < 0
-           or (row["slope_lo"] > 1 or row["slope_hi"] < 1))  # NaN comparisons are False
-    row["verdict"] = "miscalibrated (see gaps)" if off else "consistent with calibrated"
+    flags = []
+    if row["mean_gap_lo"] > 0 or row["mean_gap_hi"] < 0:
+        flags.append("average bias")
+    if row["slope_lo"] > 1 or row["slope_hi"] < 1:  # NaN comparisons are False
+        flags.append("tail bias (slope != 1)")
+    row["verdict"] = " + ".join(flags) if flags else "consistent with calibrated"
     return row
 
 
@@ -130,6 +135,12 @@ def category_band_gaps(df: pd.DataFrame, n_boot: int = N_BOOT, cluster_col: str 
     for (cat, h), g in df.groupby(["category", "horizon_h"], sort=True):
         parts.append(band_table(g, n_boot, cluster_col=cluster_col).assign(category=cat, horizon_h=int(h)))
     return pd.concat(parts, ignore_index=True) if parts else pd.DataFrame()
+
+
+def with_pooled(df: pd.DataFrame) -> pd.DataFrame:
+    """Append a copy of every non-sports row labelled as one pooled group (small categories alone are too thin)."""
+    non_sports = df[df["category"] != "Sports"]
+    return pd.concat([df, non_sports.assign(category=POOLED_NON_SPORTS)], ignore_index=True)
 
 
 def plot_bands(t: pd.DataFrame, horizon_h: int, path: Path) -> None:
@@ -179,14 +190,18 @@ def main(argv: list[str] | None = None) -> int:
     if df.empty:
         print("error: dataset is empty; run kalshi_lab.collect first")
         return 1
+    df = df.assign(close_date=df["close_time"].astype(str).str[:10])
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     pooled = pd.concat([band_table(g, args.n_boot, cluster_col=args.cluster).assign(horizon_h=int(h))
                         for h, g in df.groupby("horizon_h")], ignore_index=True)
     pooled.to_csv(out / "lying_by_band.csv", index=False)
-    cats = category_table(df, args.n_boot, cluster_col=args.cluster)
+    grouped = with_pooled(df)
+    cats = category_table(grouped, args.n_boot, cluster_col=args.cluster)
     cats.to_csv(out / "lying_by_category.csv", index=False)
-    category_band_gaps(df, args.n_boot, args.cluster).to_csv(out / "lying_category_band_gaps.csv", index=False)
+    category_table(tail_truncate(grouped), args.n_boot, cluster_col=args.cluster).to_csv(
+        out / "lying_by_category_truncated.csv", index=False)
+    category_band_gaps(grouped, args.n_boot, args.cluster).to_csv(out / "lying_category_band_gaps.csv", index=False)
     key = KEY_HORIZON_H if (df["horizon_h"] == KEY_HORIZON_H).any() else int(df["horizon_h"].max())
     plot_bands(pooled[pooled["horizon_h"] == key], key, out / f"lying_bands_{KEY_HORIZON_H}h.png")
     plot_category_gaps(cats, key, out / f"lying_category_gaps_{KEY_HORIZON_H}h.png")

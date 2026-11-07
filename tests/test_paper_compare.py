@@ -80,3 +80,13 @@ def test_main_fails_cleanly_when_no_sports_rows(tmp_path):
     csv = tmp_path / "d.csv"
     frame().assign(category="Economics").to_csv(csv, index=False)
     assert main(["--data", str(csv), "--out", str(tmp_path / "o")]) == 1
+
+
+def test_volume_error_spearman_can_use_pre_horizon_volume():
+    rng = np.random.default_rng(0)
+    n = 300
+    p = rng.uniform(0.1, 0.9, n)
+    y = (rng.uniform(size=n) < p).astype(int)
+    df = pd.DataFrame({"horizon_h": 24, "prob": p, "outcome": y, "volume_fp": np.arange(n, dtype=float),
+                       "volume_pre": -np.arange(n, dtype=float)})
+    assert volume_error_spearman(df, 24, "volume_fp")[0] == -volume_error_spearman(df, 24, "volume_pre")[0]

@@ -7,6 +7,6 @@ Sports Brier at 1h,0.104,0.134,2585,consistent
 Sports naive accuracy at 1h,0.855,0.798,2585,inconsistent
 Brier improves toward resolution,declines to ~0.02 at close (all markets),168h 0.167 / 24h 0.187 / 1h 0.134,2585,consistent
 Tail truncation (2-98c) raises Brier at 1h,0.078 vs 0.030 at close,0.166 vs 0.134 (506 rows dropped),2585,consistent
-"More volume, lower error at 24h (Spearman)",Brier falls monotonically with volume,"rho=0.287, p=0.000",2498,inconsistent
-"More volume, lower error at 1h (Spearman)",Brier falls monotonically with volume,"rho=0.352, p=0.000",2585,inconsistent
+"More volume, lower error at 24h (Spearman, volume before the horizon)",Brier falls monotonically with volume,"rho=-0.112, p=0.000",2498,consistent
+"More volume, lower error at 1h (Spearman, volume before the horizon)",Brier falls monotonically with volume,"rho=0.136, p=0.000",2585,inconsistent
 Event-time anchor changes Sports Brier at 1h,re-anchoring improves Sports calibration,close 0.134 -> event 0.113,2581,consistent
