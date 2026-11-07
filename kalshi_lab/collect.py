@@ -46,7 +46,7 @@ def sample_price(
     """Last traded price at or before (close_ts - horizon), searching back at most lookback_h. Never uses the future."""
     cutoff = close_ts - horizon_h * SECONDS_PER_HOUR
     earliest = cutoff - lookback_h * SECONDS_PER_HOUR
-    usable = [(t, p) for t, p in candles if p is not None and earliest < t <= cutoff]
+    usable = [(t, p) for t, p in candles if p is not None and p == p and earliest < t <= cutoff]  # p == p drops NaN
     if not usable:
         return None
     return max(usable)[1]

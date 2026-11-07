@@ -219,3 +219,17 @@ def test_collect_series_counts_errors_and_continues(store):
     summary = collect_series(fc, store, "S", pages=1)
     assert summary["errors"] == 1
     assert store.has_candles("E2-A") and not store.has_candles("E1-A")
+
+
+def test_sample_price_skips_nan_price_candles():
+    cutoff = CLOSE - HOUR
+    candles = [(cutoff - 3 * HOUR, 0.4), (cutoff - HOUR, float("nan"))]
+    assert sample_price(candles, CLOSE, 1) == 0.4
+
+
+def test_build_dataset_never_emits_nan_prob(store):
+    close = ts("2026-11-05T12:00:00Z")
+    seed(store, [raw_market("E1-A")],
+         {"E1-A": [candle(close - 2 * HOUR, "0.4"), candle(close - HOUR, None)]})
+    df = build_dataset(store, horizons=(1,))
+    assert df["prob"].notna().all() and df.iloc[0]["prob"] == 0.4
