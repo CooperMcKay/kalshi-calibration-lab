@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kalshi Calibration Lab</title>
+<style>
+:root{
+  --bg:#f7f6f2; --surface:#ffffff; --ink:#1c1b19; --ink2:#55524b; --muted:#8a867c; --line:#e3e0d7;
+  --series:#2563c9; --flag:#c2410c; --good:#15803d; --warn:#b45309; --bad:#b91c1c; --band:rgba(37,99,201,.14);
+  --font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#141412; --surface:#1d1c1a; --ink:#f1efe8; --ink2:#bdb9ad; --muted:#8c887d; --line:#34322d;
+  --series:#6ea1f2; --flag:#f08a4b; --good:#4ade80; --warn:#fbbf24; --bad:#f87171; --band:rgba(110,161,242,.2);}}
+:root[data-theme="dark"]{
+  --bg:#141412; --surface:#1d1c1a; --ink:#f1efe8; --ink2:#bdb9ad; --muted:#8c887d; --line:#34322d;
+  --series:#6ea1f2; --flag:#f08a4b; --good:#4ade80; --warn:#fbbf24; --bad:#f87171; --band:rgba(110,161,242,.2);}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--font)}
+.wrap{max-width:1040px;margin:0 auto;padding:20px 16px 56px}
+header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+h1{font-size:26px;margin:0 0 4px;letter-spacing:-.01em}
+.sub{color:var(--ink2);margin:0;max-width:62ch}
+button,select,input{font:inherit;color:var(--ink)}
+.btn{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
+.btn[aria-pressed="true"],.btn.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+nav{display:flex;gap:6px;flex-wrap:wrap;margin:18px 0 14px;border-bottom:1px solid var(--line);padding-bottom:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
+.grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px}
+@media(max-width:820px){.grid{grid-template-columns:1fr}}
+.ctrl{display:flex;flex-wrap:wrap;gap:14px 18px;align-items:center;margin-bottom:12px}
+.ctrl label{display:flex;flex-direction:column;font-size:12px;color:var(--ink2);gap:2px}
+.ctrl input[type=range]{width:150px}
+.seg{display:flex;gap:4px}
+h2{font-size:17px;margin:0 0 6px}
+.note{color:var(--ink2);font-size:13px;margin:6px 0 0}
+.stats{display:flex;gap:18px;flex-wrap:wrap;margin:8px 0}
+.stat b{display:block;font-size:22px;font-variant-numeric:tabular-nums}.stat span{font-size:12px;color:var(--ink2)}
+table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+th{font-size:12px;color:var(--ink2);font-weight:600}
+td.n,th.n{text-align:right}
+tr.click{cursor:pointer}tr.click:hover{background:var(--band)}
+.chip{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;border:1px solid currentColor}
+.ok{color:var(--good)}.no{color:var(--bad)}.mid{color:var(--warn)}
+svg text{fill:var(--ink2);font-size:11px;font-family:var(--font)}
+.axis{stroke:var(--line)}.diag{stroke:var(--muted);stroke-dasharray:4 4}
+#tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--bg);padding:6px 9px;border-radius:7px;font-size:12px;
+  max-width:260px;display:none;z-index:9;line-height:1.35}
+input[type=search]{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 10px;min-width:220px}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--ink2);margin-top:6px;flex-wrap:wrap}
+.sw{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.hidden{display:none}
+.tablewrap{overflow-x:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>Kalshi Calibration Lab</h1>
+    <p class="sub">Is Kalshi's price a good probability? Explore the data behind the repo, change the slices, and watch the conclusions move. <span id="gen"></span></p>
+  </div>
+  <button class="btn" id="theme" aria-label="Toggle theme">Theme</button>
+</header>
+<nav id="tabs" role="tablist"></nav>
+
+<section id="tab-rel">
+  <div class="card">
+    <div class="ctrl">
+      <label>Horizon (hours before close)<div class="seg" id="c-h"></div></label>
+      <label>Anchor<div class="seg" id="c-anchor"></div></label>
+      <label>Buckets: <b id="v-bins">10</b><input type="range" id="bins" min="4" max="20" value="10"></label>
+      <label>Tail cutoff: <b id="v-tail">0%</b><input type="range" id="tail" min="0" max="20" value="0"></label>
+      <label>Min volume: <b id="v-vol">100</b><input type="range" id="vol" min="0" max="4" value="0"></label>
+      <button class="btn" id="tbl-toggle" aria-pressed="false">Table view</button>
+    </div>
+    <div class="stats" id="rel-stats"></div>
+    <div class="grid">
+      <div><svg id="rel" viewBox="0 0 480 440" width="100%" role="img" aria-label="Reliability diagram"></svg>
+        <div class="legend"><span><i class="sw" style="background:var(--series)"></i>Calibrated within noise</span>
+        <span><i class="sw" style="background:var(--flag)"></i>Flagged (Benjamini–Hochberg, 5%)</span>
+        <span>Dashed line = perfect calibration. Bars = 95% interval.</span></div></div>
+      <div id="rel-side"><h2>How to read this</h2>
+        <p class="note">Group markets by their price. If Kalshi is calibrated, markets priced near 70¢ should resolve YES about 70% of the time, so each dot sits on the dashed diagonal. Bars show how much a dot could move by luck alone: with few markets they are wide.</p>
+        <p class="note">Drag the sliders. Fewer buckets give tighter bars; a tail cutoff drops near-certain markets; a volume floor drops thin ones. If a flag appears and disappears as you slice, it was noise.</p>
+        <div class="tablewrap hidden" id="rel-table"></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="tab-mkt" class="hidden">
+  <div class="card">
+    <div class="ctrl"><input type="search" id="q" placeholder="Search ticker or title"><select id="cat"></select>
+      <span class="note" id="mkt-count"></span></div>
+    <div class="grid">
+      <div class="tablewrap"><table><thead><tr><th>Market</th><th>Result</th><th class="n">168h</th><th class="n">24h</th><th class="n">1h</th></tr></thead><tbody id="mkt-body"></tbody></table></div>
+      <div><h2 id="path-title">Pick a market</h2><svg id="path" viewBox="0 0 420 300" width="100%" role="img" aria-label="Price path"></svg>
+        <p class="note" id="path-note">Click a row to see the price drift toward the outcome in the last week before close.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="tab-play" class="hidden">
+  <div class="card">
+    <h2>Brier score playground</h2>
+    <p class="note">Brier = (forecast − outcome)². Lower is better; always saying 50% scores 0.25. Make forecasts and see how the score punishes confident misses.</p>
+    <div class="ctrl">
+      <label>Your probability for YES: <b id="v-pp">70%</b><input type="range" id="pp" min="1" max="99" value="70"></label>
+      <label>Outcome<div class="seg"><button class="btn on" id="y1">YES</button><button class="btn" id="y0">NO</button></div></label>
+      <button class="btn" id="add">Add forecast</button><button class="btn" id="clear">Clear</button>
+    </div>
+    <div class="stats" id="play-stats"></div>
+    <div class="tablewrap"><table><thead><tr><th>#</th><th class="n">Forecast</th><th>Outcome</th><th class="n">Brier</th><th class="n">Log loss</th></tr></thead><tbody id="play-body"></tbody></table></div>
+    <p class="note" id="play-cmp"></p>
+  </div>
+</section>
+
+<section id="tab-model" class="hidden"><div class="card" id="model-card"></div></section>
+<section id="tab-paper" class="hidden"><div class="card" id="paper-card"></div></section>
+<div id="tip"></div>
+</div>
+
+<script>
+const D = __KALSHI_DATA__;
+const $ = s => document.querySelector(s);
+const el = (tag, attrs = {}, html = "") => { const e = document.createElement(tag); Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v)); e.innerHTML = html; return e; };
+const fmt = (x, d = 3) => x == null || Number.isNaN(x) ? "–" : Number(x).toFixed(d);
+const pct = x => (x * 100).toFixed(1) + "%";
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const tip = $("#tip");
+function showTip(ev, html){ tip.innerHTML = html; tip.style.display = "block";
+  tip.style.left = Math.min(ev.clientX + 12, innerWidth - 270) + "px"; tip.style.top = (ev.clientY + 12) + "px"; }
+const hideTip = () => tip.style.display = "none";
+
+/* ---------- theme + tabs ---------- */
+try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+$("#theme").onclick = () => {
+  const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+  const cur = document.documentElement.dataset.theme || (dark ? "dark" : "light");
+  const next = cur === "dark" ? "light" : "dark"; document.documentElement.dataset.theme = next;
+  try { localStorage.setItem("theme", next); } catch (e) {}
+};
+$("#gen").textContent = `Built ${D.generated} from ${new Set(D.rows.map(r => r.e)).size} events.`;
+const TABS = [["rel","Reliability explorer"],["mkt","Market browser"],["play","Brier playground"],["model","Recalibration model"],["paper","Vs the papers"]];
+TABS.forEach(([id, label], i) => { const b = el("button", {class: "btn", role: "tab", "aria-pressed": i === 0}, label); b.onclick = () => {
+  TABS.forEach(([k]) => $("#tab-" + k).classList.toggle("hidden", k !== id));
+  [...$("#tabs").children].forEach(c => c.setAttribute("aria-pressed", c === b)); }; $("#tabs").append(b); });
+
+/* ---------- statistics ---------- */
+const erfc = x => { const z = Math.abs(x), t = 1 / (1 + .5 * z);
+  const r = t * Math.exp(-z*z - 1.26551223 + t*(1.00002368 + t*(.37409196 + t*(.09678418 + t*(-.18628806 + t*(.27886807 + t*(-1.13520398 + t*(1.48851587 + t*(-.82215223 + t*.17087277))))))))); return x >= 0 ? r : 2 - r; };
+const brier = rows => rows.reduce((s, r) => s + (r.p - r.y) ** 2, 0) / rows.length;
+function buckets(rows, nb){
+  const bs = Array.from({length: nb}, (_, i) => ({lo: i / nb, hi: (i + 1) / nb, n: 0, sp: 0, sy: 0}));
+  rows.forEach(r => { const b = bs[Math.min(nb - 1, Math.floor(r.p * nb))]; b.n++; b.sp += r.p; b.sy += r.y; });
+  bs.forEach(b => { if (b.n) { b.pred = b.sp / b.n; b.act = b.sy / b.n; b.se = Math.sqrt(Math.max(b.pred * (1 - b.pred), 1e-9) / b.n);
+    b.ci = 1.96 * Math.sqrt(b.act * (1 - b.act) / b.n); b.p = erfc(Math.abs(b.act - b.pred) / b.se / Math.SQRT2); } });
+  const tested = bs.filter(b => b.n >= 5).sort((a, b) => a.p - b.p), m = tested.length; let cut = -1;
+  tested.forEach((b, i) => { if (b.p <= 0.05 * (i + 1) / m) cut = i; });
+  tested.forEach((b, i) => b.flag = i <= cut);
+  return bs;
+}
+const ece = (rows, bs) => bs.reduce((s, b) => s + (b.n ? b.n * Math.abs(b.act - b.pred) : 0), 0) / rows.length;
+
+/* ---------- reliability explorer ---------- */
+const VOLS = [100, 300, 1000, 3000, 10000];
+const S = {h: 24, anchor: "close", bins: 10, tail: 0, vol: 0};
+const hs = [...new Set(D.rows.map(r => r.h))].sort((a, b) => b - a);
+if (hs.length && !hs.includes(S.h)) S.h = hs[0];
+function seg(host, items, key){ host.innerHTML = ""; items.forEach(([v, label]) => { const b = el("button", {class: "btn", "aria-pressed": S[key] === v}, label);
+  b.onclick = () => { S[key] = v; seg(host, items, key); drawRel(); }; host.append(b); }); }
+seg($("#c-h"), hs.map(h => [h, h + "h"]), "h");
+seg($("#c-anchor"), [["close","Close time"],["occurrence","Event time"]], "anchor");
+["bins","tail","vol"].forEach(k => $("#" + k).oninput = e => { S[k] = +e.target.value; drawRel(); });
+$("#tbl-toggle").onclick = e => { const on = e.target.getAttribute("aria-pressed") !== "true"; e.target.setAttribute("aria-pressed", on);
+  $("#rel-table").classList.toggle("hidden", !on); };
+function sliceRows(){
+  const key = S.anchor === "close" ? "p" : "po", t = S.tail / 100, v = VOLS[S.vol];
+  return D.rows.filter(r => r.h === S.h && r[key] != null && (r.v ?? 0) >= v && r[key] > t && r[key] < 1 - t).map(r => ({p: r[key], y: r.y, t: r.t}));
+}
+function drawRel(){
+  $("#v-bins").textContent = S.bins; $("#v-tail").textContent = S.tail + "%"; $("#v-vol").textContent = VOLS[S.vol];
+  const rows = sliceRows(), svg = $("#rel"); svg.innerHTML = "";
+  if (rows.length < 20) { $("#rel-stats").innerHTML = "<span class='note'>Too few markets in this slice (" + rows.length + ").</span>"; return; }
+  const bs = buckets(rows, S.bins), W = 480, H = 440, L = 44, R = 12, T = 12, B = 70, pw = W - L - R, ph = H - T - B;
+  const X = v => L + v * pw, Y = v => T + (1 - v) * ph, ns = `http://www.w3.org/2000/svg`;
+  const add = (tag, a, parent = svg) => { const e = document.createElementNS(ns, tag); Object.entries(a).forEach(([k, v]) => k === "text" ? e.textContent = v : e.setAttribute(k, v)); parent.append(e); return e; };
+  for (let i = 0; i <= 5; i++) { const v = i / 5; add("line", {x1: X(0), x2: X(1), y1: Y(v), y2: Y(v), class: "axis"});
+    add("text", {x: L - 6, y: Y(v) + 4, "text-anchor": "end", text: Math.round(v * 100) + "%"});
+    add("text", {x: X(v), y: T + ph + 14, "text-anchor": "middle", text: Math.round(v * 100) + "¢"}); }
+  add("line", {x1: X(0), y1: Y(0), x2: X(1), y2: Y(1), class: "diag"});
+  add("text", {x: X(.5), y: H - 36, "text-anchor": "middle", text: "Market price (predicted)"});
+  add("text", {x: 12, y: Y(.5), transform: `rotate(-90 12 ${Y(.5)})`, "text-anchor": "middle", text: "Actual YES rate"});
+  const maxN = Math.max(...bs.map(b => b.n));
+  bs.forEach(b => { const w = pw / S.bins - 4;  // count bars along the bottom
+    add("rect", {x: X(b.lo) + 2, y: H - 22 - 20 * b.n / maxN, width: w, height: 20 * b.n / maxN, fill: "var(--muted)", opacity: .45, rx: 2}); });
+  add("text", {x: L - 6, y: H - 12, "text-anchor": "end", text: "n"});
+  bs.filter(b => b.n).forEach(b => { const c = b.flag ? "var(--flag)" : "var(--series)";
+    add("line", {x1: X(b.pred), x2: X(b.pred), y1: Y(Math.min(1, b.act + b.ci)), y2: Y(Math.max(0, b.act - b.ci)), stroke: c, "stroke-width": 2});
+    const dot = add("circle", {cx: X(b.pred), cy: Y(b.act), r: 6, fill: c, stroke: "var(--surface)", "stroke-width": 2});
+    const hit = add("circle", {cx: X(b.pred), cy: Y(b.act), r: 16, fill: "transparent"});
+    hit.onmousemove = ev => showTip(ev, `<b>${Math.round(b.lo*100)}–${Math.round(b.hi*100)}¢</b><br>n = ${b.n}<br>priced ${pct(b.pred)} → actual ${pct(b.act)}<br>±${(b.ci*100).toFixed(1)} pts (95%)<br>${b.flag ? "Flagged by BH test" : "Within noise"}`);
+    hit.onmouseleave = hideTip; });
+  const flagged = bs.filter(b => b.flag).length;
+  $("#rel-stats").innerHTML = [["Markets", rows.length],["Brier", fmt(brier(rows))],["ECE", fmt(ece(rows, bs))],["Base rate YES", pct(rows.reduce((s, r) => s + r.y, 0) / rows.length)],["Flagged buckets", flagged]]
+    .map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join("");
+  $("#rel-table").innerHTML = "<table><thead><tr><th>Bucket</th><th class='n'>n</th><th class='n'>Priced</th><th class='n'>Actual</th><th class='n'>±95%</th><th>Flag</th></tr></thead><tbody>" +
+    bs.filter(b => b.n).map(b => `<tr><td>${Math.round(b.lo*100)}–${Math.round(b.hi*100)}¢</td><td class="n">${b.n}</td><td class="n">${pct(b.pred)}</td><td class="n">${pct(b.act)}</td><td class="n">${(b.ci*100).toFixed(1)}</td><td>${b.flag ? "<span class='chip no'>⚑ flagged</span>" : "–"}</td></tr>`).join("") + "</tbody></table>";
+}
+
+/* ---------- market browser ---------- */
+const markets = Object.values(D.rows.reduce((m, r) => { (m[r.t] ||= {t: r.t, title: r.title, cat: r.cat, y: r.y, close: r.close, ps: {}}).ps[r.h] = r.p ?? r.po; return m; }, {}));
+const cats = ["All", ...new Set(markets.map(m => m.cat).filter(Boolean))];
+cats.forEach(c => $("#cat").append(el("option", {value: c}, esc(c))));
+function drawMarkets(){
+  const q = $("#q").value.toLowerCase(), c = $("#cat").value;
+  const list = markets.filter(m => (c === "All" || m.cat === c) && (m.t + m.title).toLowerCase().includes(q));
+  $("#mkt-count").textContent = `${list.length} markets` + (list.length > 150 ? " (showing 150)" : "");
+  const body = $("#mkt-body"); body.innerHTML = "";
+  list.slice(0, 150).forEach(m => { const tr = el("tr", {class: "click", tabindex: 0},
+    `<td>${esc(m.title)}<div class="note">${esc(m.t)}</div></td><td><span class="chip ${m.y ? "ok" : "no"}">${m.y ? "✓ YES" : "✗ NO"}</span></td>` +
+    [168,24,1].map(h => `<td class="n">${m.ps[h] == null ? "–" : Math.round(m.ps[h] * 100) + "¢"}</td>`).join(""));
+    tr.onclick = () => drawPath(m); tr.onkeydown = e => e.key === "Enter" && drawPath(m); body.append(tr); });
+}
+$("#q").oninput = drawMarkets; $("#cat").onchange = drawMarkets;
+function drawPath(m){
+  const pts = D.paths[m.t] || [], svg = $("#path"); svg.innerHTML = ""; $("#path-title").textContent = m.title;
+  if (!pts.length) { $("#path-note").textContent = "No candle history stored for this market."; return; }
+  const W = 420, H = 300, L = 40, R = 12, T = 12, B = 32, maxH = Math.max(...pts.map(p => p[0]));
+  const X = h => L + (1 - h / maxH) * (W - L - R), Y = p => T + (1 - p) * (H - T - B), ns = "http://www.w3.org/2000/svg";
+  const add = (tag, a) => { const e = document.createElementNS(ns, tag); Object.entries(a).forEach(([k, v]) => k === "text" ? e.textContent = v : e.setAttribute(k, v)); svg.append(e); return e; };
+  [0, .25, .5, .75, 1].forEach(v => { add("line", {x1: L, x2: W - R, y1: Y(v), y2: Y(v), class: "axis"}); add("text", {x: L - 6, y: Y(v) + 4, "text-anchor": "end", text: Math.round(v * 100) + "¢"}); });
+  add("text", {x: L, y: H - 8, text: Math.round(maxH) + "h before close"}); add("text", {x: W - R, y: H - 8, "text-anchor": "end", text: "close"});
+  add("line", {x1: L, x2: W - R, y1: Y(m.y), y2: Y(m.y), stroke: m.y ? "var(--good)" : "var(--bad)", "stroke-dasharray": "2 4"});
+  add("path", {d: pts.map((p, i) => (i ? "L" : "M") + X(p[0]).toFixed(1) + " " + Y(p[1]).toFixed(1)).join(""), fill: "none", stroke: "var(--series)", "stroke-width": 2});
+  pts.forEach(p => { const c = add("circle", {cx: X(p[0]), cy: Y(p[1]), r: 9, fill: "transparent"});
+    c.onmousemove = ev => showTip(ev, `${p[0]}h before close<br>price ${Math.round(p[1] * 100)}¢`); c.onmouseleave = hideTip; });
+  $("#path-note").textContent = `Dotted line = what actually happened (${m.y ? "YES, 100¢" : "NO, 0¢"}). A calibrated market's late price drifts toward it.`;
+}
+
+/* ---------- playground ---------- */
+const P = {y: 1, list: []};
+$("#pp").oninput = e => $("#v-pp").textContent = e.target.value + "%";
+$("#y1").onclick = () => { P.y = 1; $("#y1").classList.add("on"); $("#y0").classList.remove("on"); };
+$("#y0").onclick = () => { P.y = 0; $("#y0").classList.add("on"); $("#y1").classList.remove("on"); };
+$("#add").onclick = () => { P.list.push({p: $("#pp").value / 100, y: P.y}); drawPlay(); };
+$("#clear").onclick = () => { P.list = []; drawPlay(); };
+function drawPlay(){
+  const ll = r => -Math.log(r.y ? r.p : 1 - r.p);
+  $("#play-body").innerHTML = P.list.map((r, i) => `<tr><td>${i + 1}</td><td class="n">${Math.round(r.p * 100)}%</td><td>${r.y ? "YES" : "NO"}</td><td class="n">${fmt((r.p - r.y) ** 2)}</td><td class="n">${fmt(ll(r))}</td></tr>`).join("");
+  if (!P.list.length) { $("#play-stats").innerHTML = ""; $("#play-cmp").textContent = "Add a few forecasts. Try a 95% forecast that turns out NO."; return; }
+  const b = brier(P.list), l = P.list.reduce((s, r) => s + ll(r), 0) / P.list.length;
+  $("#play-stats").innerHTML = [["Your Brier", fmt(b)],["Always-50% Brier", "0.250"],["Your log loss", fmt(l)]].map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join("");
+  const kal = D.rows.filter(r => r.h === 24 && r.p != null);
+  $("#play-cmp").textContent = `${b < .25 ? "You beat" : "You did not beat"} the coin flip. Kalshi's 24h Brier on this dataset: ${kal.length ? fmt(brier(kal)) : "–"}. With only ${P.list.length} forecasts your score is mostly luck: that is why the explorer shows error bars.`;
+}
+
+/* ---------- model + papers ---------- */
+(function(){
+  const card = $("#model-card"), hz = Object.keys(D.model);
+  card.innerHTML = "<h2>Can a small model recalibrate Kalshi?</h2><p class='note'>Fit on the earliest 70% of events, scored on the latest 30%. Lower Brier is better. If a fancy recalibration does not beat the raw price on unseen data, the market was already well calibrated.</p>";
+  if (!hz.length) { card.append(el("p", {class: "note"}, "No model results found. Run <code>python -m kalshi_lab.model</code>.")); return; }
+  hz.forEach(h => { const rows = D.model[h], best = Math.min(...rows.map(r => r.brier));
+    card.append(el("h2", {style: "margin-top:16px"}, h + "h before close"), el("div", {class: "tablewrap"}, "<table><thead><tr><th>Model</th><th class='n'>Test n</th><th class='n'>Brier</th><th class='n'>Log loss</th><th class='n'>ECE</th></tr></thead><tbody>" +
+      rows.map(r => `<tr><td>${esc(r.model)}${r.brier === best ? " <span class='chip ok'>✓ best</span>" : ""}</td><td class="n">${r.n_test}</td><td class="n">${fmt(r.brier, 4)}</td><td class="n">${fmt(r.log_loss, 4)}</td><td class="n">${fmt(r.ece, 4)}</td></tr>`).join("") + "</tbody></table>")); });
+  card.append(el("p", {class: "note"}, "The test set is small (under 200 events), so differences in the third decimal are noise. The takeaway is that nothing beats the market by a meaningful margin."));
+})();
+(function(){
+  const card = $("#paper-card");
+  card.innerHTML = "<h2>Our results next to the Kalshi Research papers</h2><p class='note'>Level differences are expected: the papers use every sports market, we use one game-winner per event. Directions are what compare.</p>";
+  if (!D.paper.length) { card.append(el("p", {class: "note"}, "Run <code>python -m kalshi_lab.paper_compare</code> to fill this in.")); return; }
+  const icon = {consistent: ["ok", "✓ consistent"], inconsistent: ["no", "✗ inconsistent"], inconclusive: ["mid", "? inconclusive"]};
+  card.append(el("div", {class: "tablewrap"}, "<table><thead><tr><th>Finding</th><th>Paper</th><th>Ours</th><th class='n'>n</th><th>Verdict</th></tr></thead><tbody>" +
+    D.paper.map(r => { const [c, t] = icon[r.verdict] || ["mid", r.verdict]; return `<tr><td>${esc(r.finding)}</td><td>${esc(r.paper)}</td><td>${esc(r.ours)}</td><td class="n">${esc(r.n)}</td><td><span class="chip ${c}">${t}</span></td></tr>`; }).join("") + "</tbody></table>"));
+})();
+
+drawRel(); drawMarkets(); drawPlay();
+</script>
+</body>
+</html>

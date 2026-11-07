@@ -68,6 +68,14 @@ pytest
 
 No API key is needed; the public endpoints are used with a polite request rate. Raw data lands in a git-ignored `data/` folder.
 
+## Interactive dashboard
+
+```bash
+make dashboard   # builds dashboard/dashboard.html from your local data and opens it
+```
+
+One self-contained HTML file: a reliability explorer (change horizon, bucket count, tail cutoff and volume floor and watch the flags appear and vanish), a market browser with price paths, a Brier-score playground, the recalibration results, and the paper comparison. The generated file embeds per-market data, so it is gitignored; only the generator is public.
+
 ## Limitations
 
 - 633 events, nearly all sports. Not enough to say anything about politics, economics, or extreme prices.
