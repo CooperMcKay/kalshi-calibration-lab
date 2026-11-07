@@ -69,6 +69,16 @@ def _one_per_event(markets: pd.DataFrame) -> pd.DataFrame:
     return markets.sort_values("ticker").drop_duplicates("event_ticker", keep="first")
 
 
+def _choose_markets(markets: pd.DataFrame, categories: dict[str, str | None]) -> pd.DataFrame:
+    """Sports events are two-sided (both markets carry the same information): keep one per event.
+    Other events (rate ladders, temperature brackets, price thresholds) are distinct questions: keep all.
+    Event-level resampling later accounts for those markets being correlated."""
+    if markets.empty:
+        return markets
+    is_sports = markets["event_ticker"].map(categories).eq("Sports")
+    return pd.concat([_one_per_event(markets[is_sports]), markets[~is_sports]]).sort_values("ticker")
+
+
 def build_dataset(
     store: Store,
     horizons: tuple[int, ...] = HORIZONS_H,
@@ -82,7 +92,9 @@ def build_dataset(
     markets = markets[markets["result"].isin(["yes", "no"]) & (markets["volume_fp"] >= min_volume)]
     markets = markets[markets["close_time"].notna()]
     events = store.events_df()[["event_ticker", "series_ticker", "category"]]
-    chosen = _one_per_event(markets).drop(columns=["series_ticker"]).merge(events, on="event_ticker", how="left")
+    categories = dict(zip(events["event_ticker"], events["category"]))
+    chosen = _choose_markets(markets, categories).drop(columns=["series_ticker"]).merge(
+        events, on="event_ticker", how="left")
 
     candles = store.candles_df()
     by_ticker = {
@@ -140,7 +152,9 @@ def collect_series(
     eligible = pd.DataFrame([m for m in kept if keep_market(m, min_volume)])
     candle_fetches = 0
     if not eligible.empty:
-        for _, m in _one_per_event(eligible).iterrows():
+        events = store.events_df()
+        categories = dict(zip(events["event_ticker"], events["category"]))
+        for _, m in _choose_markets(eligible, categories).iterrows():
             if store.has_candles(m["ticker"]) or not m.get("close_time"):
                 continue
             anchors = [to_epoch(m["close_time"])]

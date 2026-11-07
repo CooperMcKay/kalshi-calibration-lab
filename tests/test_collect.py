@@ -90,12 +90,12 @@ def candle(end_ts, price):
     return {"end_period_ts": end_ts, "price": {"close_dollars": price}, "volume_fp": "1"}
 
 
-def seed(store, markets, candles_by_ticker):
+def seed(store, markets, candles_by_ticker, category="Sports"):
     store.upsert_markets(markets)
     for m in markets:
         if not store.has_event(m["event_ticker"]):
             store.upsert_event({"event_ticker": m["event_ticker"], "series_ticker": "S",
-                                "category": "Sports", "title": "t", "mutually_exclusive": True})
+                                "category": category, "title": "t", "mutually_exclusive": True})
     for t, cs in candles_by_ticker.items():
         store.upsert_candles(t, cs)
 
@@ -173,8 +173,9 @@ from kalshi_lab.collect import collect_series  # noqa: E402
 
 
 class FakeClient:
-    def __init__(self, markets, fail_candles_for=()):
+    def __init__(self, markets, fail_candles_for=(), category="Sports"):
         self.markets = markets
+        self.category = category
         self.fail_candles_for = set(fail_candles_for)
         self.event_calls, self.candle_calls = [], []
 
@@ -183,7 +184,7 @@ class FakeClient:
 
     def event(self, event_ticker):
         self.event_calls.append(event_ticker)
-        return {"event_ticker": event_ticker, "series_ticker": "S", "category": "Sports",
+        return {"event_ticker": event_ticker, "series_ticker": "S", "category": self.category,
                 "title": "t", "mutually_exclusive": True}
 
     def candlesticks(self, series, ticker, start_ts, end_ts, period_interval=60):
@@ -259,3 +260,19 @@ def test_build_dataset_volume_pre_excludes_post_horizon_trading(store):
     seed(store, [raw_market("E1-A")], {"E1-A": cs})
     df = build_dataset(store, horizons=(1,)).iloc[0]
     assert df["volume_pre"] == 50.0 and df["volume_fp"] == 500.0
+
+
+# ---- non-sports events keep every market (ladders are distinct questions) ----
+
+def test_build_dataset_keeps_all_markets_for_non_sports_events(store):
+    close = ts("2026-11-05T12:00:00Z")
+    cs = [candle(close - 24 * HOUR, "0.6")]
+    seed(store, [raw_market("E1-B"), raw_market("E1-A")], {"E1-A": cs, "E1-B": cs}, category="Economics")
+    df = build_dataset(store, horizons=(24,))
+    assert sorted(df["ticker"]) == ["E1-A", "E1-B"] and set(df["category"]) == {"Economics"}
+
+
+def test_collect_series_fetches_candles_for_every_non_sports_market(store):
+    fc = FakeClient([raw_market("E1-A"), raw_market("E1-B")], category="Economics")
+    collect_series(fc, store, "S", pages=1)
+    assert sorted(c[1] for c in fc.candle_calls) == ["E1-A", "E1-B"]
