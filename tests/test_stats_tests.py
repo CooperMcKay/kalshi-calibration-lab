@@ -84,3 +84,15 @@ def test_main_writes_outputs_and_fails_cleanly(tmp_path):
         assert (tmp_path / "o" / name).exists(), name
     empty = tmp_path / "e.csv"; pd.DataFrame().to_csv(empty, index=False)
     assert main(["--data", str(empty), "--out", str(tmp_path / "o2")]) == 1
+
+
+def test_volume_closeness_uses_pre_horizon_volume_when_asked():
+    rng = np.random.default_rng(3)
+    n = 400
+    p = rng.uniform(0.1, 0.9, n)
+    y = (rng.uniform(size=n) < p).astype(int)
+    df = frame(p, y)
+    df["volume_pre"] = np.arange(n, dtype=float)
+    default = volume_closeness(df, 24)
+    pre = volume_closeness(df, 24, volume_col="volume_pre")
+    assert default["rho_volume_error"] != pre["rho_volume_error"]

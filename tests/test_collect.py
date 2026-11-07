@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 import pandas as pd
 import pytest
 
-from kalshi_lab.collect import DATASET_COLUMNS, build_dataset, keep_market, sample_price
+from kalshi_lab.collect import DATASET_COLUMNS, build_dataset, keep_market, sample_price, sample_volume
 from kalshi_lab.store import Store
 
 HOUR = 3600
@@ -109,7 +109,7 @@ def test_build_dataset_columns_and_dtypes(store):
     close = ts("2026-11-05T12:00:00Z")
     seed(store, [raw_market("E1-A")], {"E1-A": [candle(close - 24 * HOUR, "0.6")]})
     df = build_dataset(store, horizons=(24,))
-    assert list(df.columns) == DATASET_COLUMNS and len(DATASET_COLUMNS) == 12
+    assert list(df.columns) == DATASET_COLUMNS and len(DATASET_COLUMNS) == 13
     assert df.iloc[0]["prob"] == 0.6 and df.iloc[0]["outcome"] == 1 and df.iloc[0]["horizon_h"] == 24
 
 
@@ -233,3 +233,29 @@ def test_build_dataset_never_emits_nan_prob(store):
          {"E1-A": [candle(close - 2 * HOUR, "0.4"), candle(close - HOUR, None)]})
     df = build_dataset(store, horizons=(1,))
     assert df["prob"].notna().all() and df.iloc[0]["prob"] == 0.4
+
+
+# ---- sample_volume (pre-horizon volume, no lookahead) -----------------------
+
+def test_sample_volume_sums_only_candles_up_to_cutoff():
+    cutoff = CLOSE - 24 * HOUR
+    vols = [(cutoff - 2 * HOUR, 10.0), (cutoff, 5.0), (cutoff + HOUR, 1000.0)]
+    assert sample_volume(vols, CLOSE, 24) == 15.0
+
+
+def test_sample_volume_ignores_missing_values_and_empty():
+    cutoff = CLOSE - HOUR
+    assert sample_volume([(cutoff - HOUR, None), (cutoff - 2 * HOUR, float("nan")), (cutoff, 3.0)], CLOSE, 1) == 3.0
+    assert sample_volume([], CLOSE, 1) == 0.0
+
+
+def test_build_dataset_volume_pre_excludes_post_horizon_trading(store):
+    close = ts("2026-11-05T12:00:00Z")
+    cs = [
+        {"end_period_ts": close - 3 * HOUR, "price": {"close_dollars": "0.5"}, "volume_fp": "40"},
+        {"end_period_ts": close - HOUR, "price": {"close_dollars": "0.5"}, "volume_fp": "10"},
+        {"end_period_ts": close, "price": {"close_dollars": "0.9"}, "volume_fp": "9999"},
+    ]
+    seed(store, [raw_market("E1-A")], {"E1-A": cs})
+    df = build_dataset(store, horizons=(1,)).iloc[0]
+    assert df["volume_pre"] == 50.0 and df["volume_fp"] == 500.0

@@ -20,7 +20,7 @@ ANCHORS = ("close", "occurrence")
 
 DATASET_COLUMNS = [
     "ticker", "event_ticker", "series_ticker", "category", "title", "close_time", "occurrence_time",
-    "horizon_h", "prob", "outcome", "volume_fp", "open_interest_fp",
+    "horizon_h", "prob", "outcome", "volume_fp", "volume_pre", "open_interest_fp",
 ]
 
 
@@ -50,6 +50,12 @@ def sample_price(
     if not usable:
         return None
     return max(usable)[1]
+
+
+def sample_volume(volumes: list[tuple[int, float | None]], close_ts: int, horizon_h: int) -> float:
+    """Contracts traded up to (close_ts - horizon), from per-candle volume. Never counts post-horizon trading."""
+    cutoff = close_ts - horizon_h * SECONDS_PER_HOUR
+    return float(sum(v for t, v in volumes if t <= cutoff and v is not None and v == v))
 
 
 def _anchor_ts(row: pd.Series, anchor: str) -> int:
@@ -83,6 +89,10 @@ def build_dataset(
         t: list(zip(g["end_period_ts"], g["price_close"].where(g["price_close"].notna(), None)))
         for t, g in candles.groupby("ticker")
     }
+    vol_by_ticker = {
+        t: list(zip(g["end_period_ts"], g["volume"].where(g["volume"].notna(), None)))
+        for t, g in candles.groupby("ticker")
+    }
     rows = []
     for _, m in chosen.iterrows():
         anchor_ts = _anchor_ts(m, anchor)
@@ -95,6 +105,7 @@ def build_dataset(
                 "category": m["category"], "title": m["title"], "close_time": m["close_time"],
                 "occurrence_time": m["occurrence_datetime"], "horizon_h": h, "prob": float(price),
                 "outcome": int(m["result"] == "yes"), "volume_fp": m["volume_fp"],
+                "volume_pre": sample_volume(vol_by_ticker.get(m["ticker"], []), anchor_ts, h),
                 "open_interest_fp": m["open_interest_fp"],
             })
     return pd.DataFrame(rows, columns=DATASET_COLUMNS)

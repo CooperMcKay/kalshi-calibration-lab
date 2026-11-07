@@ -68,15 +68,15 @@ def _residual(a: np.ndarray, control: np.ndarray) -> np.ndarray:
     return a - (slope * control + intercept)
 
 
-def volume_closeness(df: pd.DataFrame, horizon_h: int) -> dict:
+def volume_closeness(df: pd.DataFrame, horizon_h: int, volume_col: str = "volume_fp") -> dict:
     """Do busy markets have bigger errors directly, or only because they are closer (more uncertain) games?"""
-    g = df[(df["horizon_h"] == horizon_h) & df["volume_fp"].notna()]
+    g = df[(df["horizon_h"] == horizon_h) & df[volume_col].notna()]
     out = {"horizon_h": horizon_h, "n": len(g), "rho_volume_vs_distance": np.nan,
            "rho_volume_error": np.nan, "partial_rho_volume_error": np.nan}
     if len(g) < 50:
         return out
     p, y = g["prob"].to_numpy(float), g["outcome"].to_numpy(float)
-    vol = rankdata(g["volume_fp"].to_numpy(float))
+    vol = rankdata(g[volume_col].to_numpy(float))
     dist = rankdata(np.abs(p - 0.5))
     err = rankdata((p - y) ** 2)
     partial = float(np.corrcoef(_residual(vol, dist), _residual(err, dist))[0, 1])
@@ -85,11 +85,14 @@ def volume_closeness(df: pd.DataFrame, horizon_h: int) -> dict:
 
 
 def _volume_table(df: pd.DataFrame) -> pd.DataFrame:
+    """Volume vs error with both final volume (has lookahead) and pre-horizon volume (clean)."""
     rows = []
+    cols = [c for c in ("volume_fp", "volume_pre") if c in df.columns]
     scopes = [("ALL", df)] + [(s, g) for s, g in df.groupby("series_ticker") if len(g) >= MIN_ROWS]
     for name, d in scopes:
         for h in sorted(d["horizon_h"].unique()):
-            rows.append({"scope": name, **volume_closeness(d, int(h))})
+            for col in cols:
+                rows.append({"scope": name, "volume_col": col, **volume_closeness(d, int(h), col)})
     return pd.DataFrame(rows)
 
 
