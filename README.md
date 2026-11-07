@@ -25,14 +25,15 @@ Full tables and plots are in [`outputs/`](outputs/). Reliability diagrams show b
 
 ## How it compares to the papers
 
-| Paper finding | Our small-sample result | Verdict |
-|---|---|---|
-| Kalshi prices are well calibrated overall | ECE about 0.03, no BH-significant bucket | Consistent |
-| Accuracy improves closer to resolution | Brier 0.230 -> 0.225 -> 0.177 | Consistent |
-| Calibration depends on how you cut the data (horizon, tails, volume) | Fixed-cohort and tail-truncated scores match the headline closely; volume and category slices are too small to read | Inconclusive |
-| Systematic miscalibration at extreme prices (favorite-longshot style) | The 0.0-0.1 and 0.9-1.0 buckets have 0-55 rows and show no significant gap | Inconclusive |
+I read all four papers and compared concrete numbers (`outputs/paper_comparison.csv`, full detail in [`docs/papers.md`](docs/papers.md)). Short version, for Sports:
 
-See [`docs/papers.md`](docs/papers.md) for the papers and what could and could not be replicated.
+| Finding | Paper | Ours | Verdict |
+|---|---|---|---|
+| Brier improves toward resolution | yes | 0.230 -> 0.225 -> 0.178 | Consistent |
+| Tail truncation (2-98c) raises Brier | yes | 0.186 vs 0.178 at 1h | Consistent, tiny effect |
+| Event-time anchor changes Sports Brier | improves | 0.178 -> 0.137 at 1h | Consistent in direction |
+| Sports Brier / accuracy levels | 0.104-0.155 / 76-86% | 0.178-0.230 / 59-73% | Not comparable: the paper pools all sports markets including near-certain props; we use near-coin-flip game winners |
+| More volume, lower error | yes | 24h inconclusive; 1h **opposite** (rho +0.12, p=0.003) | Disagrees; likely busy games are closer games (untested) |
 
 ## Methods in plain English
 
