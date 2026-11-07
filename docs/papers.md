@@ -24,15 +24,20 @@ Survey and ZIP-code study: traders are middle-income; 82% of top-PnL traders nev
 
 | Finding | Paper | Ours | n | Verdict |
 |---|---|---|---|---|
-| Sports Brier, 168h / 24h / 1h | 0.107 / 0.155 / 0.104 | 0.230 / 0.225 / 0.178 | 153 / 627 / 631 | Level differs (see below) |
-| Sports naive accuracy, 168h / 24h / 1h | 84.6% / 76.2% / 85.5% | 61.4% / 59.0% / 73.1% | 153 / 627 / 631 | Level differs (see below) |
-| Brier improves toward resolution | yes | 0.230 -> 0.225 -> 0.178 | 631 | Consistent |
-| Tail truncation raises Brier | yes | 0.186 vs 0.178 at 1h (28 rows dropped) | 631 | Consistent, tiny effect |
-| Event-time anchor changes Sports Brier | improves calibration | 0.178 -> 0.137 at 1h | 631 | Consistent in direction |
-| Volume lowers error | yes | 24h: rho -0.03 (p=0.48); 1h: rho +0.12 (p=0.003) | 627 / 631 | Inconclusive at 24h, **opposite** at 1h |
+| Sports Brier at 168h | 0.107 | 0.167 | 866 | inconsistent |
+| Sports naive accuracy at 168h | 0.846 | 0.739 | 866 | inconsistent |
+| Sports Brier at 24h | 0.155 | 0.187 | 2498 | inconsistent |
+| Sports naive accuracy at 24h | 0.762 | 0.688 | 2498 | inconsistent |
+| Sports Brier at 1h | 0.104 | 0.134 | 2585 | consistent |
+| Sports naive accuracy at 1h | 0.855 | 0.798 | 2585 | inconsistent |
+| Brier improves toward resolution | declines to ~0.02 at close (all markets) | 168h 0.167 / 24h 0.187 / 1h 0.134 | 2585 | consistent |
+| Tail truncation (2-98c) raises Brier at 1h | 0.078 vs 0.030 at close | 0.166 vs 0.134 (506 rows dropped) | 2585 | consistent |
+| More volume, lower error at 24h (Spearman) | Brier falls monotonically with volume | rho=0.287, p=0.000 | 2498 | inconsistent |
+| More volume, lower error at 1h (Spearman) | Brier falls monotonically with volume | rho=0.352, p=0.000 | 2585 | inconsistent |
+| Event-time anchor changes Sports Brier at 1h | re-anchoring improves Sports calibration | close 0.134 -> event 0.113 | 2581 | consistent |
 
-**Why the levels differ.** The paper pools every sports market, including spreads, totals and props whose prices sit near 0 or 100 cents, and those easy markets pull Brier down. We keep one game-winner market per event, which sits near a coin flip for most of its life. A Brier of 0.18 to 0.23 on near-coin-flip games is the *expected* result, not a failure of calibration (our ECE is about 0.03). Levels are not comparable across the two samples. Directions are.
+**Why the levels differ.** The paper pools every sports market, including spreads, totals and props whose prices sit near 0 or 100 cents, and those easy markets pull Brier down. We keep one game-winner market per event, which sits near a coin flip for most of its life. A Brier of 0.18 to 0.23 on near-coin-flip games is the *expected* result, not a failure of calibration (our ECE is about 0.01-0.04). Levels are not comparable across the two samples. Directions are.
 
-**The volume result.** The paper notes that for Sports, volume mostly measures how much people care, not how easy a market is to price. In our sample the busiest games are probably the closest ones. We did not test that. It is a hypothesis, and a good thing to explore in the dashboard.
+**The volume result.** The paper notes that for Sports, volume mostly measures how much people care, not how easy a market is to price. We tested this: busier markets are indeed closer to 50/50 (Spearman -0.25 to -0.36), which explains part of the effect, but a positive partial correlation of +0.12 to +0.17 between volume and squared error remains after controlling for closeness (`outputs/stats_volume_closeness.csv`). Final volume includes trading after the prediction time, so lookahead may contribute.
 
 **The anchor result.** Kalshi's `occurrence_datetime` sits a median of about 12 minutes *after* the market close, so it is not the paper's to-the-second game-end timestamp. Moving the anchor later puts the "1 hour before" price closer to game end, and 14.6% of those prices are within 2 cents of 0 or 100, versus 4.4% for close-anchored. That fits the paper's story that timing relative to the true event matters, but we have not verified what `occurrence_datetime` represents.

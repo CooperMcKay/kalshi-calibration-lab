@@ -26,11 +26,10 @@ def time_split(df: pd.DataFrame, test_frac: float = TEST_FRAC) -> tuple[pd.DataF
 
 
 def make_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Price-only features. Final volume/open interest are excluded: they include trading after the horizon."""
     p = df["prob"].clip(PRICE_EPS, 1 - PRICE_EPS)
     return pd.DataFrame({
         "logit_price": np.log(p / (1 - p)),
-        "log_volume": np.log1p(df["volume_fp"]),
-        "log_open_interest": np.log1p(df["open_interest_fp"]),
     }, index=df.index)
 
 
@@ -40,7 +39,7 @@ def _score(name: str, p: np.ndarray, y: np.ndarray) -> dict:
 
 
 def evaluate(df: pd.DataFrame, horizon_h: int) -> pd.DataFrame:
-    """Fit on the early events, score on the late ones: market price vs three recalibrators."""
+    """Fit on the early events, score on the late ones: market price vs two recalibrators."""
     sub = df[df["horizon_h"] == horizon_h]
     if len(sub) < MIN_ROWS:
         raise ValueError(f"need at least {MIN_ROWS} rows at {horizon_h}h, got {len(sub)}")
@@ -53,13 +52,11 @@ def evaluate(df: pd.DataFrame, horizon_h: int) -> pd.DataFrame:
     platt = LogisticRegression(C=1e6).fit(X_tr[["logit_price"]], y_tr)
     print(f"Platt fit at {horizon_h}h: slope={platt.coef_[0][0]:.3f} intercept={platt.intercept_[0]:.3f} "
           "(slope 1, intercept 0 = already calibrated)")
-    full = LogisticRegression(C=1.0, max_iter=1000).fit(X_tr, y_tr)
     iso = IsotonicRegression(y_min=0, y_max=1, out_of_bounds="clip").fit(train["prob"], y_tr)
 
     rows = [
         _score("market", test["prob"].to_numpy(), y_te),
         _score("logistic_platt", platt.predict_proba(X_te[["logit_price"]])[:, 1], y_te),
-        _score("logistic_full", full.predict_proba(X_te)[:, 1], y_te),
         _score("isotonic", iso.predict(test["prob"]), y_te),
     ]
     return pd.DataFrame(rows)

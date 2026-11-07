@@ -8,18 +8,20 @@ A small, from-scratch study of prediction-market prices. When a market says 70%,
 
 ## Headline results
 
-Data: 633 settled Kalshi events (NBA, NFL, NHL game winners plus Fed decisions), one market per event, volume >= 100. Almost everything is sports; the Fed series contributed only 2 usable events, so **these results are about sports markets**.
+Data: 2,588 settled Kalshi events across nine sports series (NBA, NFL, NHL, MLB, college football, college basketball, WNBA, UFC, plus 2 Fed events), one market per event, volume >= 100. **These results are about sports game-winner markets.** Brier and ECE are shown with bootstrap 95% intervals (1,000 resamples).
 
 | Horizon before close | n | Brier (lower is better) | ECE | "Always say 50%" Brier |
 |---|---|---|---|---|
-| 168h | 153 | 0.230 | 0.035 | 0.25 |
-| 24h | 627 | 0.225 | 0.032 | 0.25 |
-| 1h | 633 | 0.177 | 0.033 | 0.25 |
+| 168h | 866 | 0.167 (0.153-0.180) | 0.036 | 0.25 |
+| 24h | 2,498 | 0.187 (0.180-0.193) | 0.012 | 0.25 |
+| 1h | 2,587 | 0.134 (0.127-0.141) | 0.017 | 0.25 |
 
-- **Prices look well calibrated.** ECE is about 0.03 at every horizon, and after Benjamini-Hochberg false-discovery control **no reliability bucket is significantly off** at any horizon.
-- **Prices get sharper as the event approaches** (Brier falls from 0.230 to 0.177), mostly through *resolution* (the Murphy term that rewards separating winners from losers: 0.019 at 168h, 0.025 at 24h, 0.074 at 1h). Reliability error stays tiny (0.002-0.003).
-- **Recalibration does not clearly help.** On a time-ordered test set of about 190 events, a Platt (logistic) fit on price alone gave a slope of 0.96 (1.0 means already calibrated) and scored slightly *worse* than the raw price. Isotonic regression was no better. A logistic model that also sees volume and open interest improved Brier (24h: 0.194 vs 0.204; 1h: 0.159 vs 0.170) but worsened ECE, on a small test set with no confidence intervals, so treat that as a lead rather than a result. The 168h horizon has only 153 rows, below the 200-row minimum, so `model.py` refuses to run there.
-- **The anchor choice matters.** Sampling relative to the market's close time vs the event's scheduled start changes the 1h Brier from 0.178 to 0.137 in this sample. I have not investigated why, so I report it as a data trap, not a finding.
+- **Prices look well calibrated.** ECE is 0.01-0.04 and after Benjamini-Hochberg false-discovery control **no reliability bucket is significantly off** at any horizon. (ECE intervals are biased upward under resampling, so read them as rough.)
+- **Prices are sharpest at 1h.** The 168h row is a different, smaller population (markets that opened a week out), so it should not be read as a trend with the other two.
+- **No evidence of favorite-longshot bias at 24h or 168h.** At 1h the logit slope is 1.08 (95% CI 1.00-1.17), only just above the calibrated value of 1, with price gaps around one percentage point. I would not call that a finding.
+- **Recalibration does not help.** On a time-ordered test set (749 events at 24h), the raw market scored Brier 0.168, Platt 0.169, isotonic 0.171. Same pattern at 1h and 168h. An earlier version of this project also fed final volume and open interest into a model and saw it "win"; that was lookahead (those totals include trading after the prediction time), so the model was removed.
+- **The anchor choice matters.** Measuring from the event's scheduled time instead of the market's close time changes the 1h Brier from 0.134 to 0.113 in this sample. I have not investigated why, so I report it as a data trap, not a finding.
+- **Volume and error: not just "busy games are closer games".** Higher-volume markets are closer to 50/50 (Spearman -0.25 to -0.36), which explains part of the volume-error link. A positive partial correlation of +0.12 to +0.17 remains after controlling for closeness, in nearly every series. Caveat: final volume includes post-horizon trading, so this may still be partly lookahead.
 
 Full tables and plots are in [`outputs/`](outputs/). Reliability diagrams show binomial 95% intervals and the sample size in every bucket.
 
@@ -29,11 +31,10 @@ I read all four papers and compared concrete numbers (`outputs/paper_comparison.
 
 | Finding | Paper | Ours | Verdict |
 |---|---|---|---|
-| Brier improves toward resolution | yes | 0.230 -> 0.225 -> 0.178 | Consistent |
-| Tail truncation (2-98c) raises Brier | yes | 0.186 vs 0.178 at 1h | Consistent, tiny effect |
-| Event-time anchor changes Sports Brier | improves | 0.178 -> 0.137 at 1h | Consistent in direction |
-| Sports Brier / accuracy levels | 0.104-0.155 / 76-86% | 0.178-0.230 / 59-73% | Not comparable: the paper pools all sports markets including near-certain props; we use near-coin-flip game winners |
-| More volume, lower error | yes | 24h inconclusive; 1h **opposite** (rho +0.12, p=0.003) | Disagrees; likely busy games are closer games (untested) |
+| Tail truncation (2-98c) raises Brier | yes | 0.166 vs 0.134 at 1h | Consistent |
+| Event-time anchor changes Sports Brier | improves | 0.134 -> 0.113 at 1h | Consistent in direction |
+| Sports Brier / accuracy levels | 0.104-0.155 / 76-86% | 0.134-0.187 / 69-80% | Not comparable: the paper pools all sports markets including near-certain props; we use near-coin-flip game winners |
+| More volume, lower error | yes | **opposite** (rho +0.29 at 24h, +0.35 at 1h) | Disagrees; part of it is busy games being closer games, a smaller effect remains |
 
 ## Methods in plain English
 
@@ -57,12 +58,15 @@ Binary, cleanly settled markets only; multivariate parlays removed; volume floor
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python -m kalshi_lab.collect --series KXNBAGAME,KXNFLGAME,KXNHLGAME,KXFED --pages 3
-python -m kalshi_lab.collect --series KXNBAGAME,KXNFLGAME,KXNHLGAME,KXFED --pages 3 \
+SERIES=KXNBAGAME,KXNFLGAME,KXNHLGAME,KXMLBGAME,KXNCAAFGAME,KXNCAAMBGAME,KXWNBAGAME,KXUFCFIGHT
+python -m kalshi_lab.collect --series $SERIES --pages 10
+python -m kalshi_lab.collect --series $SERIES --pages 10 \
     --anchor occurrence --out data/dataset_occurrence.csv
 python -m kalshi_lab.calibration
 python -m kalshi_lab.report_plots
 python -m kalshi_lab.model --horizon 24
+python -m kalshi_lab.paper_compare
+python -m kalshi_lab.stats_tests
 pytest
 ```
 
@@ -78,8 +82,8 @@ One self-contained HTML file: a reliability explorer (change horizon, bucket cou
 
 ## Limitations
 
-- 633 events, nearly all sports. Not enough to say anything about politics, economics, or extreme prices.
-- Results are point estimates in a small sample; model comparisons have no confidence intervals.
+- 2,588 events, all sports. Nothing here speaks to politics, economics, or extreme prices.
+- Model comparisons have no confidence intervals on the test-set scores, and the test set is time-ordered, so it reflects one period.
 - The 168h horizon only exists for markets that opened a week out, so it is a different (and smaller) population.
 - Candle prices are last traded prices, which can be stale on thin markets.
 - This describes how prices behaved; it says nothing about whether any strategy would have made money.

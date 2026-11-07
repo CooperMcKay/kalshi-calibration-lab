@@ -36,13 +36,13 @@ def test_time_split_does_not_mutate_input():
 def test_make_features_columns_and_finite_at_extremes():
     df = synthetic(n=10).assign(prob=[0.0, 1.0] + [0.5] * 8)
     X = make_features(df)
-    assert list(X.columns) == ["logit_price", "log_volume", "log_open_interest"]
+    assert list(X.columns) == ["logit_price"]  # final volume/open interest include post-horizon trading: lookahead
     assert np.isfinite(X.to_numpy()).all()
 
 
-def test_evaluate_returns_four_models_with_scores():
+def test_evaluate_returns_three_models_with_scores():
     out = evaluate(synthetic(), 24).set_index("model")
-    assert set(out.index) == {"market", "logistic_platt", "logistic_full", "isotonic"}
+    assert set(out.index) == {"market", "logistic_platt", "isotonic"}
     assert {"n_test", "brier", "log_loss", "ece"} <= set(out.columns)
     assert out["n_test"].nunique() == 1
 
