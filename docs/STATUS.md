@@ -10,15 +10,14 @@ Goal: learn prediction markets, math and stats; answer "Is Kalshi lying? When it
 - Findings: calibrated in the middle of the range and in sports; small favorite-longshot tail effect outside sports (slope 1.11, 1.04-1.19 by day); recalibration ties the market.
 - Research note drafted: `docs/research-note.md`.
 
-## Blocking before publishing the note: data terms
-Kalshi Developer Agreement v1.1 section 3.1 bars collecting/caching/storing API data except to facilitate your own trading, and 4.1.1 requires Membership. Cooper is in Canada and cannot be a Member. Nothing has been pushed since the non-sports data was added. Decide: ask Kalshi for written permission, or keep the note private.
+## Data terms (decided)
+Kalshi Developer Agreement v1.1 section 3.1 bars collecting/caching/storing API data except to facilitate your own trading, and 4.1.1 requires Membership. Cooper is in Canada and cannot be a Member. Cooper's call (2026-11-08): publishing aggregate analysis is fine; raw data stays private. Ten weeks of data is enough; no need to extend history.
 
 ## Next
-1. Resolve the data-terms question (above).
-2. More history: older markets via Kalshi's historical endpoints; more dates would fix the "ten weeks" limit and the election-night clustering.
-3. Add confidence intervals to the recalibration test scores.
-4. Forecasting game (deferred until the note ships).
-5. Later: sportsbook benchmark, scheduled refresh.
+1. Push and share the note.
+2. Add confidence intervals to the recalibration test scores.
+3. Forecasting game (next, now that the note is done).
+4. Later: sportsbook benchmark, scheduled refresh.
 
 ## Open caveats
 - ECE bootstrap intervals are biased upward.

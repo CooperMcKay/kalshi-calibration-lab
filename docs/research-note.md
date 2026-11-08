@@ -1,6 +1,6 @@
 # Is Kalshi lying? A small calibration check
 
-*Draft, 7 Nov 2026. Independent project, not affiliated with Kalshi. Not trading or financial advice. Do not publish widely before resolving the data-terms question at the end.*
+*Draft, 7 Nov 2026. Independent project, not affiliated with Kalshi. Not trading or financial advice.*
 
 ## The question
 
@@ -29,9 +29,9 @@ An early version of this project found that busier markets had *larger* errors, 
 - The 1h horizon is not forecasting for most non-sports markets (the outcome is nearly known), so conclusions rest on 24h and 168h.
 - Last-traded prices can be stale on thin markets. Calibration says nothing about whether any strategy would have made money.
 
-## Data terms (decide before publishing)
+## Data terms
 
-Kalshi's Developer Agreement (v1.1) limits API use to facilitating a member's own trading, prohibits collecting, caching, aggregating or storing API data for other purposes (3.1), bars sharing it without written authorization, and requires API users to be Members (4.1.1). I read public, keyless endpoints from Canada, where I cannot hold an account, so it is unclear whether and how the agreement applies. The public repo contains code and aggregate results only. Before circulating this note, ask Kalshi for written permission (they run a research and media-data programme) or get independent advice.
+Kalshi's Developer Agreement (v1.1) limits API use to facilitating a member's own trading, prohibits collecting, caching, aggregating or storing API data for other purposes (3.1), bars sharing it without written authorization, and requires API users to be Members (4.1.1). I read public, keyless endpoints from Canada, where I cannot hold an account, so it is unclear whether and how the agreement applies. The public repo contains code and aggregate results only. This note shares aggregate results only, never raw data.
 
 ## Reproduce
 
