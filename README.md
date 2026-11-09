@@ -6,6 +6,8 @@ A small, from-scratch study of prediction-market prices. It measures how far pri
 
 ## The short answer
 
+![Kalshi price vs how often it happened, by price band, 24h before close](outputs/lying_bands_24h.png)
+
 **Mostly no, with one small exception at the extremes.** Across 22,019 price observations from 3,695 settled events (ten weeks of data, 31 Aug to 7 Nov 2026), when Kalshi says 70% the thing happens about 70% of the time.
 
 | Kalshi said (24h before close) | Happened | n events | Verdict |
