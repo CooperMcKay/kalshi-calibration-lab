@@ -29,6 +29,10 @@ The exception is the classic favorite-longshot pattern: very cheap contracts win
 - **Horizons differ in population.** 168h only exists for markets that opened a week out, so it is a smaller, different set, not a trend.
 
 
+## How it compares to the papers
+
+This is a small-sample replication of a few findings from Kalshi Research's calibration papers, and where our numbers differ it is mostly because we study near-coin-flip game winners while they pool every sports market.
+
 | Finding | Paper | Ours | Verdict |
 |---|---|---|---|
 | Tail truncation (2-98c) raises Brier | yes | 0.166 vs 0.134 at 1h | Consistent |
