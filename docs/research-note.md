@@ -13,13 +13,13 @@ When a prediction market says 70%, does the event happen about 70% of the time? 
 ## What I found
 
 1. **When Kalshi says 70%, it is about right.** At 24h the 65-75% band said 69.3% and happened 67.3% (371 events, gap -2.0 points, interval -6.4 to +2.9). The middle of the price range shows no significant gap anywhere.
-2. **Sports are calibrated at every horizon.** No band is flagged. The intervals are wide (3 to 10 points per band), so this means "no detectable lie", not "provably honest".
+2. **Sports are calibrated at 24h.** No sports band is flagged there. Two extreme sports bands are flagged at other horizons (under 5% at 1h, over 95% at 168h), in the same direction as the non-sports tail effect. The intervals are wide (3 to 10 points per band), so this means "no detectable lie", not "provably honest".
 3. **The one exception is at the extremes, and only outside sports.** Contracts priced under 5% happened 0.7% of the time against an average price of 1.9%; contracts priced over 95% happened slightly more often than priced. This favorite-longshot pattern survives resampling by day, not just by event (calibration slope 1.11, interval 1.04-1.19). It is worth about 1 to 2 points, and part of it is the 1 cent price floor: a contract that is really 0.5% likely cannot trade below 1 cent.
 4. **A small model cannot beat the price.** Platt and isotonic recalibration trained on the oldest 70% of events tie the raw market on the newest 30% (Brier 0.1080 vs 0.1083 and 0.1082 at 24h). The only visible gain is log loss at 1h, where tails matter.
 
 ## A result that did not survive
 
-An early version of this project found that busier markets had *larger* errors, the opposite of Kalshi's paper, and a model using volume appeared to beat the market. Both came from using each market's final volume, which includes trading after the prediction time. With volume measured as of the prediction time, the effect vanishes (partial correlation +0.01 to +0.02, down from +0.12 to +0.17). The model was removed. I mention it because it is the most instructive thing in the project: a plausible, even publishable-looking, edge that was future information in disguise.
+An early version of this project found that busier markets had *larger* errors, the opposite of Kalshi's paper, and a model using volume appeared to beat the market. Both came from using each market's final volume, which includes trading after the prediction time. With volume measured as of the prediction time, the effect vanishes (partial correlation between -0.04 and +0.02 across horizons, down from +0.03 to +0.13). The model was removed. I mention it because it is the most instructive thing in the project: a plausible, even publishable-looking, edge that was future information in disguise.
 
 ## What this cannot say
 
